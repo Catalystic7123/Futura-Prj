@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 /**
@@ -29,8 +30,8 @@ export const calculateMatrixData = async (
   priceMatrix: any,
   timeMapping: any
 ) => {
-  // Always use the API key directly from process.env as required by guidelines
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Always use a new instance to ensure the latest API key is used
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
   try {
     const response = await ai.models.generateContent({
@@ -64,7 +65,7 @@ export const calculateMatrixData = async (
       }
     });
 
-    // Access the .text property directly. It is not a method call.
+    // Directly access .text property as per SDK guidelines (it is a getter, not a method)
     const resultText = response.text;
     if (!resultText) {
       return [];
