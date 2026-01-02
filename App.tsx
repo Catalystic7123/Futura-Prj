@@ -24,7 +24,9 @@ import {
   ArrowRightLeft,
   Radar,
   Fingerprint,
-  Info
+  Lock,
+  User,
+  AlertCircle
 } from 'lucide-react';
 import { 
   LocationState, 
@@ -89,6 +91,14 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<ScanStatus>('IDLE');
   const [activeTab, setActiveTab] = useState('terminal');
   const [mounted, setMounted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Production Auth Simulation
+  const [userProfile] = useState({
+    name: "Enterprise Node",
+    license: "PRO_PLATINUM",
+    expiry: "2026-12-31"
+  });
   
   const [location, setLocation] = useState<LocationState>({
     preset: 'New York (NY)',
@@ -139,12 +149,15 @@ const App: React.FC = () => {
   const executeScan = useCallback(async () => {
     if (status === 'SCANNING') return;
     setStatus('SCANNING');
+    setError(null);
     setResults([]);
+    
     try {
       const ephemerisData = await calculateMatrixData(location, dateTime, priceMatrix, timeMapping);
       setResults(ephemerisData);
-    } catch (err) {
-      console.error("Matrix Calculation Failed:", err);
+    } catch (err: any) {
+      setError(err.message || "An unexpected calculation error occurred.");
+      setStatus('IDLE');
     } finally {
       setStatus('IDLE');
     }
@@ -192,12 +205,14 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4 text-[8px] font-mono">
-             <div className="flex items-center gap-2">
-                <span className="text-slate-600 uppercase font-black">Sync:</span>
-                <span className="text-emerald-400 font-bold">ONLINE</span>
+          <div className="flex items-center gap-4">
+             <div className="flex flex-col items-end">
+                <span className="text-[7px] font-black text-slate-500 uppercase">License: {userProfile.license}</span>
+                <span className="text-[8px] font-mono text-emerald-400 font-bold uppercase tracking-widest">Active Status</span>
              </div>
-             <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+             <div className="w-8 h-8 rounded-full bg-white/[0.03] border border-white/5 flex items-center justify-center">
+                <User size={14} className="text-slate-400" />
+             </div>
           </div>
           <button className="p-1.5 rounded-lg bg-white/[0.03] border border-white/5 hover:border-cyan-500/30 transition-all">
             <Settings2 size={12} className="text-slate-500" />
@@ -205,13 +220,29 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      {/* Error Toast Simulation */}
+      {error && (
+        <div className="fixed top-16 right-6 z-[200] animate-in slide-in-from-right duration-500">
+           <div className="glass-card bg-red-500/10 border-red-500/30 p-4 rounded-xl flex items-center gap-4">
+              <AlertCircle className="text-red-500" size={18} />
+              <div className="flex flex-col">
+                 <span className="text-[10px] font-black text-white uppercase tracking-wider">System Alert</span>
+                 <span className="text-[9px] text-red-200 font-medium">{error}</span>
+              </div>
+              <button onClick={() => setError(null)} className="ml-4 text-white/20 hover:text-white">
+                <Lock size={12} />
+              </button>
+           </div>
+        </div>
+      )}
+
       {/* Main Container */}
       <main className="flex-1 flex overflow-hidden p-4 gap-4 relative">
         
         {/* Compact Sidebar Control Panel */}
         <aside className="w-[300px] flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar shrink-0">
           
-          <InputGroup label="Spatial Anchoring" icon={<Globe />}>
+          <InputGroup label="Spatial Anchoring" icon={<Globe />} badge="Auth Validated">
             <Field label="Preset">
               <select 
                 className="w-full h-8 px-2 rounded-lg text-[10px] font-bold text-slate-300" 
@@ -274,14 +305,14 @@ const App: React.FC = () => {
                onClick={executeScan} 
                disabled={status === 'SCANNING'} 
                className={`neo-button group relative w-full flex items-center justify-center gap-3 h-12 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
-                 status === 'SCANNING' ? 'bg-slate-900/50 text-slate-600' : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                 status === 'SCANNING' ? 'bg-slate-900/50 text-slate-600' : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-[0_0_20px_rgba(8,145,178,0.15)]'
                }`}
              >
                 {status === 'SCANNING' ? <Loader2 size={16} className="animate-spin" /> : <Fingerprint size={16} />}
-                {status === 'SCANNING' ? 'SCANNING...' : 'EXECUTE SCAN'}
+                {status === 'SCANNING' ? 'DECRYPTING...' : 'INITIALIZE SCAN'}
              </button>
              <button className="w-full h-9 flex items-center justify-center gap-2 text-[8px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all border border-white/[0.03] rounded-xl bg-white/[0.01]">
-                <Download size={12} /> EXPORT CSV
+                <Download size={12} /> EXPORT TELEMETRY
              </button>
           </div>
         </aside>
@@ -328,7 +359,7 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between px-6 py-3 border-b border-white/[0.03] bg-white/[0.01] shrink-0">
               <div className="flex items-center gap-3">
                 <BarChart3 size={14} className="text-slate-600" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Live Stream Data Matrix</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Live Observation Matrix</span>
               </div>
               
               <div className="flex items-center gap-4">
@@ -427,8 +458,8 @@ const App: React.FC = () => {
                   <span className="hidden md:inline">Window: {dateTime.step * dateTime.count} min</span>
                </div>
                <div className="flex items-center gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                  <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">Core Sync Active</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                  <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest">Node Verified</span>
                </div>
             </footer>
           </div>

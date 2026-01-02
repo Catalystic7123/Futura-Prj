@@ -18,7 +18,8 @@ export const InputGroup: React.FC<InputGroupProps> = ({ label, icon, children, b
       <div className="flex items-center justify-between border-b border-white/[0.04] pb-2.5">
         <div className="flex items-center gap-3">
           <div className="p-1.5 rounded-lg bg-cyan-500/5 text-cyan-400 border border-cyan-500/10 group-hover:bg-cyan-500/10 transition-all duration-500 shadow-lg shadow-cyan-500/5">
-            {React.cloneElement(icon as React.ReactElement, { size: 14 })}
+            {/* Fix: Verify the icon is a valid React element and cast to any to allow 'size' prop injection */}
+            {React.isValidElement(icon) ? React.cloneElement(icon as React.ReactElement<any>, { size: 14 }) : icon}
           </div>
           <div className="flex flex-col">
             <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 group-hover:text-white transition-colors leading-none">

@@ -1,45 +1,47 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
 /**
- * Acts as a high-precision Ephemeris Engine using Gemini 3 Pro.
+ * PRODUCTION NOTE:
+ * In a commercial environment, this service should reside on a private Node.js backend.
+ * The frontend would call your server (e.g., POST /api/analyze), and your server 
+ * would hold the API_KEY and these System Instructions securely.
  */
+
+const SYSTEM_INSTRUCTION = `
+You are the Futura Chron V1 Core Engine, a high-precision temporal-price harmonic processor specializing in Gann-style financial astrology.
+
+CORE MATHEMATICAL FRAMEWORK:
+1. SPATIAL: Convert geographic coordinates to local horizon perspectives.
+2. TEMPORAL: Map linear time to ecliptic degrees (0-360). 
+3. HARMONICS: Identify "Square of Nine" relationships and geometric squaring of time/price vectors.
+4. CALCULATION: For a given Latitude/Longitude and Time, you must accurately estimate the Ascendant or Midheaven degree for each step in a sequence.
+
+BUSINESS RULES:
+- Identify "isSquare" when degrees align with perfect square integers (e.g., 144, 169, 196).
+- Flag "match: STRONG" when the variance (delta) between the calculated degree and the time-target is < 0.25.
+- "quantumNotes" must be professional, technical, and use financial/astronomical terminology (e.g., "Zenith Confluence", "Horizontal Parity", "Ecliptic Resistance").
+- Accuracy is paramount. Use high-reasoning capabilities to verify math before outputting JSON.
+`;
+
 export const calculateMatrixData = async (
   location: any,
   dateTime: any,
   priceMatrix: any,
   timeMapping: any
 ) => {
+  // Always use the API key directly from process.env as required by guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `
-        ROLE: High-Precision Temporal/Price Harmonic Engine (Gann-style Ephemeris).
-        
-        DATA CONTEXT:
-        - GEOGRAPHIC_ANCHOR: Latitude ${location.latitude}, Longitude ${location.longitude}${location.direction}.
-        - TEMPORAL_ANCHOR: ${dateTime.date} at ${dateTime.time} (${location.timezone}).
-        - INTERVALS: ${dateTime.count || 24} data points with a step of ${dateTime.step} minutes.
-        - CALCULATION_MODE: ${timeMapping.mode}.
-        - PRECISION_SYSTEM: ${timeMapping.lahiri ? 'Lahiri/Sidereal (True Ayanamsa)' : 'Tropical (Standard)'}.
-        - FINANCIAL_VECTOR: Low: ${priceMatrix.low}, High: ${priceMatrix.high}, Scale: ${priceMatrix.scale}.
-
-        MATHEMATICAL OBJECTIVE:
-        1. Calculate the astronomical position (Ecliptic Longitude) for the specified mode (${timeMapping.mode}) for each time interval.
-        2. Map the calculated degree [0-360] to the Price Matrix using the provided High/Low range.
-        3. Determine "Time Target" based on geometric squaring of the interval.
-        4. Calculate "deltaAscPrice" as the variance between the mapped price-degree and the actual degree target.
-        5. Flag "isSquare" if either the degree (asc) or the delta matches a perfect square harmonic (4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225, 256, 289, 324, 361).
-        
-        OUTPUT REQUIREMENT:
-        - Return EXACTLY ${dateTime.count} entries.
-        - "match": 'STRONG' if deltaAscPrice < 0.25, else 'NEUTRAL'.
-        - "quantumNotes": Provide a brief professional technical insight (max 12 words) about the planetary/temporal confluence.
-        
-        FORMAT: JSON Array.
-      `,
+      contents: `Perform temporal scan for ${location.preset}. 
+      Start: ${dateTime.date} ${dateTime.time}. 
+      Range: ${dateTime.count} nodes at ${dateTime.step}min intervals. 
+      Mode: ${timeMapping.mode}. 
+      Parameters: PriceRange(${priceMatrix.low}-${priceMatrix.high}), Precision(${timeMapping.lahiri ? 'Sidereal' : 'Tropical'}).`,
       config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -47,11 +49,10 @@ export const calculateMatrixData = async (
             type: Type.OBJECT,
             properties: {
               id: { type: Type.INTEGER },
-              dateTime: { type: Type.STRING, description: "Format: YYYY-MM-DD HH:MM" },
-              asc: { type: Type.NUMBER, description: "Current calculated ecliptic degree" },
-              timeTarget: { type: Type.NUMBER, description: "Geometric degree target" },
-              deltaAscPrice: { type: Type.NUMBER, description: "Absolute variance" },
-              deltaAscTime: { type: Type.NUMBER },
+              dateTime: { type: Type.STRING },
+              asc: { type: Type.NUMBER },
+              timeTarget: { type: Type.NUMBER },
+              deltaAscPrice: { type: Type.NUMBER },
               match: { type: Type.STRING, enum: ["STRONG", "NEUTRAL"] },
               quantumNotes: { type: Type.STRING },
               isSquare: { type: Type.BOOLEAN }
@@ -63,9 +64,23 @@ export const calculateMatrixData = async (
       }
     });
 
-    return JSON.parse(response.text || '[]');
-  } catch (error) {
-    console.error("Ephemeris Engine Critical Error:", error);
-    return [];
+    // Access the .text property directly. It is not a method call.
+    const resultText = response.text;
+    if (!resultText) {
+      return [];
+    }
+
+    const data = JSON.parse(resultText);
+    return data;
+  } catch (error: any) {
+    // Production-grade error categorization
+    if (error.message?.includes('429')) {
+      throw new Error("RATE_LIMIT: Computational nodes saturated. Please wait 60s.");
+    }
+    if (error.message?.includes('401')) {
+      throw new Error("AUTH_ERROR: Invalid licensing credentials.");
+    }
+    console.error("Critical Engine Error:", error);
+    throw new Error("CORE_FAILURE: Matrix calculation interrupted.");
   }
 };
